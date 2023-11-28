@@ -1,0 +1,6 @@
+/target
+/Cargo.lock
+__pycache__
+/raport/*
+!/raport/raport.tex
+!/raport/raport.pdf

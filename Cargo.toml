@@ -1,0 +1,19 @@
+[package]
+name = "abm"
+version = "0.1.0"
+authors = ["Wleter <marcraftzastepczy@gmail.com>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+quantum = { git = "https://github.com/Wleter/quantum.git" }
+nalgebra = "0.32.3"
+num = "0.4.1"
+pyo3 = { version = "0.20.0", features = ["auto-initialize"] }
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+panic = "abort"
+debug = true
