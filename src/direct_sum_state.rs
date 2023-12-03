@@ -1,4 +1,4 @@
-use crate::{irreducible_state::IrreducibleState, state::State, state_base::StateBase};
+use crate::{irreducible_state::IrreducibleState, state::State, basis_element::BasisElement};
 
 #[derive(Debug, Clone)]
 pub struct DirectSumState {
@@ -38,7 +38,7 @@ impl State for DirectSumState {
         self.dims.iter().sum()
     }
 
-    fn basis(&self) -> Vec<&StateBase> {
+    fn basis(&self) -> Vec<&BasisElement> {
         self.states
             .iter()
             .map(|state| state.basis())

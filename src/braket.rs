@@ -1,15 +1,15 @@
 use std::ops::{Index, Deref};
 
-use crate::state_base::StateBase;
+use crate::basis_element::BasisElement;
 
 #[derive(Clone, Copy)]
 pub struct Braket<'a> {
-    pub bra: &'a StateBase,
-    pub ket: &'a StateBase,
+    pub bra: &'a BasisElement,
+    pub ket: &'a BasisElement,
 }
 
 impl<'a> Braket<'a> {
-    pub fn new(bra: &'a StateBase, ket: &'a StateBase) -> Self {
+    pub fn new(bra: &'a BasisElement, ket: &'a BasisElement) -> Self {
         Self { bra, ket }
     }
 

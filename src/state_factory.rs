@@ -1,12 +1,12 @@
 use crate::{
-    irreducible_state::IrreducibleState, spin_operators::projection_range, state_base::StateBase, direct_sum_state::DirectSumState, state::State,
+    irreducible_state::IrreducibleState, spin_operators::projection_range, basis_element::BasisElement, direct_sum_state::DirectSumState, state::State,
 };
 
 /// Creates spin state with basis of projection of the spin, with values of the projection
 /// and quantum number as double the projection value.
 pub fn create_spin(name: &str, double_spin: usize) -> IrreducibleState {
     let basis = projection_range(double_spin)
-        .map(|m| StateBase::new(m as f64 / 2.0, m))
+        .map(|m| BasisElement::new(m as f64 / 2.0, m))
         .collect();
 
     IrreducibleState::new(name, "spin", double_spin as isize, basis)

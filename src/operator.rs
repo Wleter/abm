@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{braket::{Braket, Brakets}, composite_state::CompositeState, state_base::StateBase};
+use crate::{braket::{Braket, Brakets}, composite_state::CompositeState, basis_element::BasisElement};
 
 pub struct Operator<'a> {
     states: Rc<CompositeState>,
@@ -37,7 +37,7 @@ impl<'a> Operator<'a> {
         self.op_funcs.clear();
     }
 
-    pub fn values(&self, q_right: &[StateBase], q_left: &[StateBase]) -> f64 {
+    pub fn values(&self, q_right: &[BasisElement], q_left: &[BasisElement]) -> f64 {
         let brakets = q_right
             .iter()
             .zip(q_left.iter())

@@ -1,8 +1,8 @@
 use nalgebra::DMatrix;
 
-use crate::{matrix_builder::MatrixBuilder, state_base::StateBase};
+use crate::{matrix_builder::MatrixBuilder, basis_element::BasisElement};
 
-pub struct StateTransformation<'a, F: Fn(&[StateBase], &[StateBase]) -> f64> {
+pub struct StateTransformation<'a, F: Fn(&[BasisElement], &[BasisElement]) -> f64> {
     builder_from: &'a MatrixBuilder,
     builder_to: &'a MatrixBuilder,
     // transform_from: Vec<&'static str>,
@@ -10,7 +10,7 @@ pub struct StateTransformation<'a, F: Fn(&[StateBase], &[StateBase]) -> f64> {
     transformation: F,
 }
 
-impl<'a, F: Fn(&[StateBase], &[StateBase]) -> f64> StateTransformation<'a, F> {
+impl<'a, F: Fn(&[BasisElement], &[BasisElement]) -> f64> StateTransformation<'a, F> {
     pub fn new(
         builder_from: &'a MatrixBuilder,
         builder_to: &'a MatrixBuilder,

@@ -2,11 +2,11 @@ use std::{fmt::Display, rc::Rc};
 
 use nalgebra::DMatrix;
 
-use crate::{composite_state::CompositeState, operator::Operator, state_base::StateBase};
+use crate::{composite_state::CompositeState, operator::Operator, basis_element::BasisElement};
 
 pub struct MatrixBuilder {
     states: Rc<CompositeState>,
-    basis_states: Vec<Vec<StateBase>>,
+    basis_states: Vec<Vec<BasisElement>>,
 }
 
 impl MatrixBuilder {
@@ -28,7 +28,7 @@ impl MatrixBuilder {
         &self.states
     }
 
-    pub fn filter_states(&mut self, func: impl Fn(&[StateBase]) -> bool) {
+    pub fn filter_states(&mut self, func: impl Fn(&[BasisElement]) -> bool) {
         self.basis_states = self
             .basis_states
             .iter()
@@ -46,7 +46,7 @@ impl MatrixBuilder {
         }
     }
 
-    pub fn basis_states(&self) -> &[Vec<StateBase>] {
+    pub fn basis_states(&self) -> &[Vec<BasisElement>] {
         &self.basis_states
     }
 
