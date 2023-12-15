@@ -1,6 +1,6 @@
 use std::ops::Index;
 
-use crate::{irreducible_state::IrreducibleState, state::State, state_base::StateBase};
+use crate::{irreducible_state::IrreducibleState, state::State, basis_element::BasisElement};
 
 #[derive(Debug)]
 pub struct CompositeState {
@@ -48,13 +48,13 @@ impl CompositeState {
         self.states.iter().map(|state| state.name()).collect()
     }
 
-    pub fn state_from_base(&self, base: &StateBase) -> &IrreducibleState {
+    pub fn state_from_base(&self, base: &BasisElement) -> &IrreducibleState {
         &self.states[base.state_id().unwrap()]
             .get_irreducible(base.irreducible_state_id().unwrap())
             .unwrap()
     }
 
-    pub fn states_from_index(&self, index: usize) -> Vec<StateBase> {
+    pub fn states_from_index(&self, index: usize) -> Vec<BasisElement> {
         let mut indices = Vec::with_capacity(self.states.len());
 
         let mut index = index;

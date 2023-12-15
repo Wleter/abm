@@ -1,11 +1,11 @@
-use crate::{state::State, state_base::StateBase};
+use crate::{state::State, basis_element::BasisElement};
 
 #[derive(Clone, Debug)]
 pub struct IrreducibleState {
     name: String,
     algebra: String,
     q_number: isize,
-    basis: Vec<StateBase>,
+    basis: Vec<BasisElement>,
     id: Option<usize>,
 }
 
@@ -14,7 +14,7 @@ impl IrreducibleState {
         name: &str,
         algebra: &str,
         q_number: isize,
-        basis: Vec<StateBase>,
+        basis: Vec<BasisElement>,
     ) -> IrreducibleState {
         IrreducibleState {
             name: name.to_string(),
@@ -56,7 +56,7 @@ impl State for IrreducibleState {
         self.basis.len()
     }
 
-    fn basis(&self) -> Vec<&StateBase> {
+    fn basis(&self) -> Vec<&BasisElement> {
         self.basis.iter().collect()
     }
 

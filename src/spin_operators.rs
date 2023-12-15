@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    braket::Braket, composite_state::CompositeState, operator::Operator, state_base::StateBase,
+    braket::Braket, composite_state::CompositeState, operator::Operator, basis_element::BasisElement,
     utils::clebsch_gordan,
 };
 
@@ -75,7 +75,7 @@ impl SpinOperators {
         }
     }
 
-    pub fn spin_sqr(&self, base: &StateBase) -> f64 {
+    pub fn spin_sqr(&self, base: &BasisElement) -> f64 {
         assert!(self.is_spin_state(base));
         let spin = self.composite_state.state_from_base(&base).q_number() as f64 / 2.0;
 
@@ -169,7 +169,7 @@ impl SpinOperators {
         val1 + val2 + val3
     }
 
-    fn is_spin_state(&self, base: &StateBase) -> bool {
+    fn is_spin_state(&self, base: &BasisElement) -> bool {
         self.composite_state.state_from_base(&base).algebra() == "spin"
     }
 

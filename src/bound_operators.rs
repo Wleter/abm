@@ -1,8 +1,8 @@
 use std::{mem::swap, rc::Rc};
 
-use quantum::units::{Unit, energy_units::Energy};
+use quantum::units::{energy_units::Energy, Unit};
 
-use crate::{braket::Braket, composite_state::CompositeState, state_base::StateBase};
+use crate::{braket::Braket, composite_state::CompositeState, basis_element::BasisElement};
 
 pub struct BoundOperators {
     composite_state: Rc<CompositeState>,
@@ -86,7 +86,7 @@ impl BoundOperators {
         self.fc_factors[fc_index]
     }
 
-    fn is_bound_state(&self, base: &StateBase) -> bool {
+    fn is_bound_state(&self, base: &BasisElement) -> bool {
         self.composite_state.state_from_base(base).algebra() == "bound"
     }
 }

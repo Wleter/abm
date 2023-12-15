@@ -8,10 +8,11 @@ pub mod matrix_builder;
 pub mod operator;
 pub mod spin_operators;
 pub mod state;
-pub mod state_base;
+pub mod basis_element;
 pub mod state_factory;
 pub mod state_transformation;
 pub mod utils;
+pub mod defaults;
 
 extern crate nalgebra;
 extern crate quantum;

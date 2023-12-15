@@ -10,7 +10,7 @@ use abm::{
     operator::Operator,
     spin_operators::SpinOperators,
     state::State,
-    state_base::StateBase,
+    basis_element::BasisElement,
     state_factory::{create_spin, create_spin_sum},
     state_transformation::StateTransformation,
     utils::clebsch_gordan,
@@ -119,7 +119,7 @@ impl PotassiumBound {
             "b",
             "bound",
             2,
-            vec![StateBase::new(0.0, 0), StateBase::new(1.0, 1)],
+            vec![BasisElement::new(0.0, 0), BasisElement::new(1.0, 1)],
         ));
 
         states.add_state(bound_space);

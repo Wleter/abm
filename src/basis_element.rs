@@ -1,14 +1,14 @@
 use crate::{composite_state::CompositeState, state::State};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
-pub struct StateBase {
+pub struct BasisElement {
     value: f64,
     q_number: isize,
     state_id: Option<usize>,
     irr_state_id: Option<usize>,
 }
 
-impl StateBase {
+impl BasisElement {
     pub fn new(value: f64, quant_number: isize) -> Self {
         Self {
             value,
@@ -57,4 +57,4 @@ impl StateBase {
     }
 }
 
-impl Eq for StateBase {}
+impl Eq for BasisElement {}
