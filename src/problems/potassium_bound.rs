@@ -60,7 +60,7 @@ impl PotassiumBound {
 
         let a_hifi_1 = Energy::new(Self::HIFI_K39_MHZ, MHz).to_au();
         let a_hifi_2 = Energy::new(Self::HIFI_K41_MHZ, MHz).to_au();
-        let gamma_e = -2.0 * Defaults::BOHR_MAG / 2.350517567e9;
+        let gamma_e = -2.0 * Defaults::BOHR_MAG;
         let gamma_i1 = Energy::new(Self::GAMMA_I_K39, MHz).to_au() * 1e-4;
         let gamma_i2 = Energy::new(Self::GAMMA_I_K41, MHz).to_au() * 1e-4;
 
@@ -130,7 +130,7 @@ impl PotassiumBound {
 
         let a_hifi_1 = Energy::new(Self::HIFI_K39_MHZ, MHz).to_au();
         let a_hifi_2 = Energy::new(Self::HIFI_K41_MHZ, MHz).to_au();
-        let gamma_e = -2.0 * Defaults::BOHR_MAG / 2.350517567e9;
+        let gamma_e = -2.0 * Defaults::BOHR_MAG;
         let gamma_i1 = Energy::new(Self::GAMMA_I_K39, MHz).to_au() * 1e-4;
         let gamma_i2 = Energy::new(Self::GAMMA_I_K41, MHz).to_au() * 1e-4;
 
@@ -238,7 +238,7 @@ impl PotassiumBound {
 
         let a_hifi_1 = Energy::new(Self::HIFI_K39_MHZ, MHz).to_au();
         let a_hifi_2 = Energy::new(Self::HIFI_K39_MHZ, MHz).to_au();
-        let gamma_e = -2.0 * Defaults::BOHR_MAG / 2.350517567e9;
+        let gamma_e = -2.0 * Defaults::BOHR_MAG;
         let gamma_i1 = Energy::new(Self::GAMMA_I_K39, MHz).to_au() * 1e-4;
         let gamma_i2 = Energy::new(Self::GAMMA_I_K39, MHz).to_au() * 1e-4;
 
@@ -348,7 +348,7 @@ impl PotassiumBound {
 
         let a_hifi_1 = Energy::new(Self::HIFI_K39_MHZ, MHz).to_au();
         let a_hifi_2 = Energy::new(Self::HIFI_K39_MHZ, MHz).to_au();
-        let gamma_e = -2.0 * Defaults::BOHR_MAG / 2.350517567e9;
+        let gamma_e = -2.0 * Defaults::BOHR_MAG;
         let gamma_i1 = Energy::new(Self::GAMMA_I_K39, MHz).to_au() * 1e-4;
         let gamma_i2 = Energy::new(Self::GAMMA_I_K39, MHz).to_au() * 1e-4;
 

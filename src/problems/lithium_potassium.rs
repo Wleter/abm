@@ -48,7 +48,7 @@ impl LithiumPotassium {
 
         // ---------- Li6 ----------
         let a_hifi = Energy::new(Self::HIFI_LI6_MHZ, MHz).to_au();
-        let gamma_e = -2.0 * Defaults::BOHR_MAG / 2.350517567e9;
+        let gamma_e = -2.0 * Defaults::BOHR_MAG;
         let gamma_i = 0.0;
 
         let s = Box::new(create_spin("s", 1));
@@ -90,7 +90,7 @@ impl LithiumPotassium {
 
         // ---------- K40 ----------
         let a_hifi = Energy::new(Self::HIFI_K40_MHZ, MHz).to_au();
-        let gamma_e = -2.0 * Defaults::BOHR_MAG / 2.350517567e9;
+        let gamma_e = -2.0 * Defaults::BOHR_MAG;
         let gamma_i = 0.0;
 
         let s = Box::new(create_spin("s", 1));
@@ -136,7 +136,7 @@ impl LithiumPotassium {
 
         let a_hifi_1 = Energy::new(Self::HIFI_LI6_MHZ, MHz).to_au();
         let a_hifi_2 = Energy::new(Self::HIFI_K40_MHZ, MHz).to_au();
-        let gamma_e = -2.0 * Defaults::BOHR_MAG / 2.350517567e9;
+        let gamma_e = -2.0 * Defaults::BOHR_MAG;
         let gamma_i1 = 0.0;
         let gamma_i2 = 0.0;
 
