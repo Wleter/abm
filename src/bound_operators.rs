@@ -1,5 +1,7 @@
 use std::{mem::swap, rc::Rc};
 
+use quantum::units::{Unit, energy_units::Energy};
+
 use crate::{braket::Braket, composite_state::CompositeState, state_base::StateBase};
 
 pub struct BoundOperators {
@@ -10,11 +12,11 @@ pub struct BoundOperators {
 }
 
 impl BoundOperators {
-    pub fn new(
+    pub fn new<U: Unit>(
         composite_state: Rc<CompositeState>,
         bound_states_name: &str,
-        triplets: Vec<f64>,
-        singlets: Vec<f64>,
+        triplets: Vec<Energy<U>>,
+        singlets: Vec<Energy<U>>,
         fc_factors: Vec<f64>,
     ) -> Self {
         let b_state_index = composite_state.state_index(bound_states_name);
@@ -37,8 +39,8 @@ impl BoundOperators {
 
         Self {
             composite_state,
-            triplets,
-            singlets,
+            triplets: triplets.iter().map(|e| e.to_au()).collect(),
+            singlets: singlets.iter().map(|e| e.to_au()).collect(),
             fc_factors,
         }
     }

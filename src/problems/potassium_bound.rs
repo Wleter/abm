@@ -18,7 +18,7 @@ use abm::{
 use quantum::{
     problem_selector::ProblemSelector,
     saving::save_param_change,
-    units::{convert_data_units, energy_units::EnergyUnit},
+    units::{convert_data_units, energy_units::{Energy, MHz, GHz}, Au},
     utility::linspace,
 };
 
@@ -58,11 +58,11 @@ impl PotassiumBound {
     pub fn hifi_39_41() {
         println!("Solving hyperfine for K39 - K41...");
 
-        let a_hifi_1 = EnergyUnit::MHz.to_au(Self::HIFI_K39_MHZ);
-        let a_hifi_2 = EnergyUnit::MHz.to_au(Self::HIFI_K41_MHZ);
+        let a_hifi_1 = Energy::new(Self::HIFI_K39_MHZ, MHz).to_au();
+        let a_hifi_2 = Energy::new(Self::HIFI_K41_MHZ, MHz).to_au();
         let gamma_e = -2.0 * Defaults::BOHR_MAG / 2.350517567e9;
-        let gamma_i1 = EnergyUnit::MHz.to_au(Self::GAMMA_I_K39) * 1e-4;
-        let gamma_i2 = EnergyUnit::MHz.to_au(Self::GAMMA_I_K41) * 1e-4;
+        let gamma_i1 = Energy::new(Self::GAMMA_I_K39, MHz).to_au() * 1e-4;
+        let gamma_i2 = Energy::new(Self::GAMMA_I_K41, MHz).to_au() * 1e-4;
 
         let total_double_m = 4;
 
@@ -100,7 +100,7 @@ impl PotassiumBound {
             diagonalization.diagonalize(hamiltonian);
 
             let energies = convert_data_units(diagonalization.eigvalues(), |x| {
-                EnergyUnit::Au.to_giga_hz(x)
+                Energy::new(x, Au).to(GHz).value
             });
             values.push(energies);
         }
@@ -128,14 +128,14 @@ impl PotassiumBound {
     pub fn abm_39_41() {
         println!("Solving abm for K39 K41...");
 
-        let a_hifi_1 = EnergyUnit::MHz.to_au(Self::HIFI_K39_MHZ);
-        let a_hifi_2 = EnergyUnit::MHz.to_au(Self::HIFI_K41_MHZ);
+        let a_hifi_1 = Energy::new(Self::HIFI_K39_MHZ, MHz).to_au();
+        let a_hifi_2 = Energy::new(Self::HIFI_K41_MHZ, MHz).to_au();
         let gamma_e = -2.0 * Defaults::BOHR_MAG / 2.350517567e9;
-        let gamma_i1 = EnergyUnit::MHz.to_au(Self::GAMMA_I_K39) * 1e-4;
-        let gamma_i2 = EnergyUnit::MHz.to_au(Self::GAMMA_I_K41) * 1e-4;
+        let gamma_i1 = Energy::new(Self::GAMMA_I_K39, MHz).to_au() * 1e-4;
+        let gamma_i2 = Energy::new(Self::GAMMA_I_K41, MHz).to_au() * 1e-4;
 
-        let triplet_states = vec![EnergyUnit::MHz.to_au(-8.33), EnergyUnit::MHz.to_au(-1282.5)];
-        let singlet_states = vec![EnergyUnit::MHz.to_au(-32.1), EnergyUnit::MHz.to_au(-1698.1)];
+        let triplet_states = vec![Energy::new(-8.33, MHz), Energy::new(-1282.5, MHz)];
+        let singlet_states = vec![Energy::new(-32.1, MHz), Energy::new(-1698.1, MHz)];
         let fc_factors = vec![0.9180, 0.0895, 0.0463, 0.9674];
 
         let total_double_m = 4;
@@ -220,7 +220,7 @@ impl PotassiumBound {
 
             solver.diagonalize(hamiltonian);
 
-            let energies = convert_data_units(solver.eigvalues(), |x| EnergyUnit::Au.to_giga_hz(x));
+            let energies = convert_data_units(solver.eigvalues(), |x| Energy::new(x, Au).to(GHz).value);
             values.push(energies);
         }
 
@@ -236,11 +236,11 @@ impl PotassiumBound {
     pub fn hifi_39_39() {
         println!("Solving hyperfine for K39 - K39...");
 
-        let a_hifi_1 = EnergyUnit::MHz.to_au(Self::HIFI_K39_MHZ);
-        let a_hifi_2 = EnergyUnit::MHz.to_au(Self::HIFI_K39_MHZ);
+        let a_hifi_1 = Energy::new(Self::HIFI_K39_MHZ, MHz).to_au();
+        let a_hifi_2 = Energy::new(Self::HIFI_K39_MHZ, MHz).to_au();
         let gamma_e = -2.0 * Defaults::BOHR_MAG / 2.350517567e9;
-        let gamma_i1 = EnergyUnit::MHz.to_au(Self::GAMMA_I_K39) * 1e-4;
-        let gamma_i2 = EnergyUnit::MHz.to_au(Self::GAMMA_I_K39) * 1e-4;
+        let gamma_i1 = Energy::new(Self::GAMMA_I_K39, MHz).to_au() * 1e-4;
+        let gamma_i2 = Energy::new(Self::GAMMA_I_K39, MHz).to_au() * 1e-4;
 
         let total_double_m = 4;
 
@@ -329,7 +329,7 @@ impl PotassiumBound {
             diagonalization.diagonalize(hamiltonian);
 
             let energies = convert_data_units(diagonalization.eigvalues(), |x| {
-                EnergyUnit::Au.to_giga_hz(x)
+                Energy::new(x, Au).to(GHz).value
             });
             values.push(energies);
         }
@@ -346,14 +346,14 @@ impl PotassiumBound {
     pub fn abm_39_39() {
         println!("Solving abm for K39 K39...");
 
-        let a_hifi_1 = EnergyUnit::MHz.to_au(Self::HIFI_K39_MHZ);
-        let a_hifi_2 = EnergyUnit::MHz.to_au(Self::HIFI_K39_MHZ);
+        let a_hifi_1 = Energy::new(Self::HIFI_K39_MHZ, MHz).to_au();
+        let a_hifi_2 = Energy::new(Self::HIFI_K39_MHZ, MHz).to_au();
         let gamma_e = -2.0 * Defaults::BOHR_MAG / 2.350517567e9;
-        let gamma_i1 = EnergyUnit::MHz.to_au(Self::GAMMA_I_K39) * 1e-4;
-        let gamma_i2 = EnergyUnit::MHz.to_au(Self::GAMMA_I_K39) * 1e-4;
+        let gamma_i1 = Energy::new(Self::GAMMA_I_K39, MHz).to_au() * 1e-4;
+        let gamma_i2 = Energy::new(Self::GAMMA_I_K39, MHz).to_au() * 1e-4;
 
-        let triplet_states = vec![EnergyUnit::MHz.to_au(-8.33), EnergyUnit::MHz.to_au(-1282.5)];
-        let singlet_states = vec![EnergyUnit::MHz.to_au(-32.1), EnergyUnit::MHz.to_au(-1698.1)];
+        let triplet_states = vec![Energy::new(-8.33, MHz), Energy::new(-1282.5, MHz)];
+        let singlet_states = vec![Energy::new(-32.1, MHz), Energy::new(-1698.1, MHz)];
         let fc_factors = vec![0.9180, 0.0895, 0.0463, 0.9674];
 
         let total_double_m = 4;
@@ -500,7 +500,7 @@ impl PotassiumBound {
             diagonalization.diagonalize(hamiltonian);
 
             let energies = convert_data_units(diagonalization.eigvalues(), |x| {
-                EnergyUnit::Au.to_giga_hz(x)
+                Energy::new(x, Au).to(GHz).value
             });
             values.push(energies);
         }
