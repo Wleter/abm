@@ -1,43 +1,17 @@
-use std::{collections::VecDeque, rc::Rc};
-
-use abm::{
-    composite_state::CompositeState,
-    diagonalization::Diagonalization,
-    direct_sum_state::DirectSumState,
-    matrix_builder::MatrixBuilder,
-    operator::Operator,
-    spin_operators::SpinOperators,
-    state_factory::create_spin,
-};
+use abm::{utility::save_spectrum, ABMProblemBuilder, ABMVibrational, HifiProblemBuilder};
+use faer::mat;
 use quantum::{
-    problem_selector::ProblemSelector,
-    saving::save_param_change,
-    units::{convert_data_units, energy_units::{Energy, MHz, GHz}, Au},
+    problems_impl,
+    units::energy_units::{Energy, GHz, MHz},
     utility::linspace,
 };
 
-use crate::defaults::Defaults;
-
 pub struct LithiumPotassium;
 
-impl ProblemSelector for LithiumPotassium {
-    const NAME: &'static str = "potassium-potassium";
-
-    fn list() -> Vec<&'static str> {
-        vec![
-            "hyperfine",
-            "asymptotic bound",
-        ]
-    }
-
-    fn methods(number: &str, _args: &mut VecDeque<String>) {
-        match number {
-            "0" => Self::hifi(),
-            "1" => Self::abm(),
-            _ => println!("Invalid problem number"),
-        }
-    }
-}
+problems_impl!(LithiumPotassium, "Li6 - K40",
+    "hyperfine" => |_| Self::hifi(),
+    "abm" => |_| Self::abm()
+);
 
 impl LithiumPotassium {
     const HIFI_LI6_MHZ: f64 = 228.2 / 1.5;
@@ -48,87 +22,43 @@ impl LithiumPotassium {
 
         // ---------- Li6 ----------
         let a_hifi = Energy(Self::HIFI_LI6_MHZ, MHz).to_au();
-        let gamma_e = -2.0 * Defaults::BOHR_MAG;
-        let gamma_i = 0.0;
 
-        let s = Box::new(create_spin("s", 1));
-        let i = Box::new(create_spin("i", 2));
-
-        let states = Rc::new(CompositeState::new("spins_states", vec![s, i]));
-        let matrix_builder = MatrixBuilder::new(states.clone());
-        let spin_ops = SpinOperators::new(states.clone());
-
-        let gammas = [gamma_e, gamma_i];
-        let mut zeeman_prop = Operator::new(states.clone());
-        spin_ops.zeeman_operator(&mut zeeman_prop, &["s", "i"], &gammas);
-        let zeeman_prop_matrix = matrix_builder.from_operator(&zeeman_prop);
-
-        let mut hifi = Operator::new(states.clone());
-        hifi.add_operator(vec!["s", "i"], |brakets| {
-            a_hifi * spin_ops.dot([&brakets["s"], &brakets["i"]])
-        });
-        let hifi_matrix = matrix_builder.from_operator(&hifi);
+        let hifi_problem = HifiProblemBuilder::new(1, 2)
+            .with_hyperfine_coupling(a_hifi)
+            .build();
 
         let mag_fields = linspace(0.0, 1000.0, 1000);
-        let mut values = Vec::new();
-        let mut solver = Diagonalization::new(hifi_matrix.clone(), None);
-        for mag_field in &mag_fields {
-            let hamiltonian = &hifi_matrix + &zeeman_prop_matrix * *mag_field;
-            solver.diagonalize(hamiltonian);
+        let values: Vec<Vec<f64>> = mag_fields
+            .iter()
+            .map(|&mag_field| {
+                let (energies, _) = hifi_problem.states_at(mag_field);
 
-            let energies = convert_data_units(solver.eigvalues(), |x| Energy(x, Au).to(GHz).value());
-            values.push(energies);
-        }
+                energies.into_iter().map(|x| x.to(GHz).value()).collect()
+            })
+            .collect();
 
-        save_param_change(
-            "Li_K/hifi_Li6",
-            mag_fields,
-            values,
-            vec!["magnetic_field", "energies"],
-        )
-        .unwrap();
+        let header = "Magnetic field [G]\tEnergies [GHz]";
+        save_spectrum(header, "Li_K/hifi_Li6", &mag_fields, &values).expect("Error while saving");
 
         // ---------- K40 ----------
         let a_hifi = Energy(Self::HIFI_K40_MHZ, MHz).to_au();
-        let gamma_e = -2.0 * Defaults::BOHR_MAG;
-        let gamma_i = 0.0;
 
-        let s = Box::new(create_spin("s", 1));
-        let i = Box::new(create_spin("i", 8));
-        let states = Rc::new(CompositeState::new("spins_states", vec![s, i]));
-
-        let matrix_builder = MatrixBuilder::new(states.clone());
-        let spin_ops = SpinOperators::new(states.clone());
-
-        let gammas = [gamma_e, gamma_i];
-        let mut zeeman_prop = Operator::new(states.clone());
-        spin_ops.zeeman_operator(&mut zeeman_prop, &["s", "i"], &gammas);
-        let zeeman_prop_matrix = matrix_builder.from_operator(&zeeman_prop);
-
-        let mut hifi = Operator::new(states.clone());
-        hifi.add_operator(vec!["s", "i"], |brakets| {
-            a_hifi * spin_ops.dot([&brakets["s"], &brakets["i"]])
-        });
-        let hifi_matrix = matrix_builder.from_operator(&hifi);
+        let hifi_problem = HifiProblemBuilder::new(1, 8)
+            .with_hyperfine_coupling(a_hifi)
+            .build();
 
         let mag_fields = linspace(0.0, 1000.0, 1000);
-        let mut values = Vec::new();
-        let mut solver = Diagonalization::new(hifi_matrix.clone(), None);
-        for mag_field in &mag_fields {
-            let hamiltonian = &hifi_matrix + &zeeman_prop_matrix * *mag_field;
-            solver.diagonalize(hamiltonian);
+        let values: Vec<Vec<f64>> = mag_fields
+            .iter()
+            .map(|&mag_field| {
+                let (energies, _) = hifi_problem.states_at(mag_field);
 
-            let energies = convert_data_units(solver.eigvalues(), |x| Energy(x, Au).to(GHz).value());
-            values.push(energies);
-        }
+                energies.into_iter().map(|x| x.to(GHz).value()).collect()
+            })
+            .collect();
 
-        save_param_change(
-            "Li_K/hifi_K40",
-            mag_fields,
-            values,
-            vec!["magnetic_field", "energies"],
-        )
-        .unwrap();
+        let header = "Magnetic field [G]\tEnergies [GHz]";
+        save_spectrum(header, "Li_K/hifi_K40", &mag_fields, &values).expect("Error while saving");
     }
 
     pub fn abm() {
@@ -136,83 +66,33 @@ impl LithiumPotassium {
 
         let a_hifi_1 = Energy(Self::HIFI_LI6_MHZ, MHz).to_au();
         let a_hifi_2 = Energy(Self::HIFI_K40_MHZ, MHz).to_au();
-        let gamma_e = -2.0 * Defaults::BOHR_MAG;
-        let gamma_i1 = 0.0;
-        let gamma_i2 = 0.0;
 
-        let triplet_state = Energy(-427.44, MHz).to_au();
-        let singlet_state = Energy(-720.76, MHz).to_au();
-        let fc_factor = 0.979;
+        let lithium = HifiProblemBuilder::new(1, 2).with_hyperfine_coupling(a_hifi_1);
 
-        let total_double_m = -6;
-        let states = Rc::new({
-            let s_tot = Box::new(DirectSumState::new(
-                "S_tot",
-                vec![create_spin("triplet", 2), create_spin("singlet", 0)],
-            ));
-            let i1 = Box::new(create_spin("i1", 2));
-            let i2 = Box::new(create_spin("i2", 8));
-            CompositeState::new("spins_states", vec![s_tot, i1, i2])
-        });
+        let potassium = HifiProblemBuilder::new(1, 8).with_hyperfine_coupling(a_hifi_2);
 
-        let mut matrix_builder = MatrixBuilder::new(states.clone());
-        matrix_builder.filter_states(|q_states| {
-            q_states.iter().map(|s| s.q_number()).sum::<isize>() == total_double_m
-        });
-        let spin_ops = SpinOperators::new(states.clone());
+        let triplet_state = vec![Energy(-427.44, MHz)];
+        let singlet_state = vec![Energy(-720.76, MHz)];
+        let fc_factor = mat![[0.979]];
 
-        let mut bound_states = Operator::new(states.clone());
-        bound_states.add_operator(vec!["S_tot"], |brakets| {
-            if brakets["S_tot"].ket == brakets["S_tot"].bra {
-                let state_q_number = states.state_from_base(brakets["S_tot"].ket).q_number();
-                if state_q_number == 0 {
-                    singlet_state
-                } else {
-                    assert!(state_q_number == 2);
-                    triplet_state
-                }
-            } else {
-                0.0
-            }
-        });
-        let bound_states_matrix = matrix_builder.from_operator(&bound_states);
+        let vibrational = ABMVibrational::new(singlet_state, triplet_state, fc_factor);
 
-        let gammas = [gamma_e, gamma_i1, gamma_i2];
-        let mut zeeman_prop = Operator::new(states.clone());
-        spin_ops.zeeman_operator(&mut zeeman_prop, &["S_tot", "i1", "i2"], &gammas);
-        let zeeman_prop_matrix = matrix_builder.from_operator(&zeeman_prop);
-
-        let mut hifi = Operator::new(states.clone());
-        hifi.add_operator(vec!["S_tot", "i1", "i2"], |brakets| {
-            a_hifi_1 / 2.0 * spin_ops.dot([&brakets["S_tot"], &brakets["i1"]])
-                + a_hifi_2 / 2.0 * spin_ops.dot([&brakets["S_tot"], &brakets["i2"]])
-        })
-        .add_operator(vec!["S_tot", "i1", "i2"], |brakets| {
-            fc_factor * (
-                a_hifi_1 / 2.0 * spin_ops.dot_minus([&brakets["S_tot"], &brakets["i1"]])
-                    - a_hifi_2 / 2.0 * spin_ops.dot_minus([&brakets["S_tot"], &brakets["i2"]])
-            )
-        });
-        let hifi_matrix = matrix_builder.from_operator(&hifi);
+        let abm_problem = ABMProblemBuilder::new(lithium, potassium)
+            .with_vibrational(vibrational)
+            .with_projection(-6)
+            .build();
 
         let mag_fields = linspace(0.0, 400.0, 1000);
-        let mut values = Vec::new();
-        let mut solver = Diagonalization::new(hifi_matrix.clone(), None);
-        for mag_field in &mag_fields {
-            let hamiltonian = &bound_states_matrix + &hifi_matrix + &zeeman_prop_matrix * *mag_field;
+        let values: Vec<Vec<f64>> = mag_fields
+            .iter()
+            .map(|&mag_field| {
+                let (energies, _) = abm_problem.states_at(mag_field);
 
-            solver.diagonalize(hamiltonian);
+                energies.into_iter().map(|x| x.to(GHz).value()).collect()
+            })
+            .collect();
 
-            let energies = convert_data_units(solver.eigvalues(), |x| Energy(x, Au).to(GHz).value());
-            values.push(energies);
-        }
-
-        save_param_change(
-            "Li_K/abm",
-            mag_fields,
-            values,
-            vec!["magnetic_field", "energies"],
-        )
-        .unwrap()
+        let header = "Magnetic field [G]\tEnergies [GHz]";
+        save_spectrum(header, "Li_K/abm", &mag_fields, &values).expect("Error while saving");
     }
 }

@@ -1,301 +1,605 @@
-pub mod bound_operators;
-pub mod braket;
-pub mod composite_state;
-pub mod diagonalization;
-pub mod direct_sum_state;
-pub mod irreducible_state;
-pub mod matrix_builder;
-pub mod operator;
-pub mod spin_operators;
-pub mod state;
-pub mod basis_element;
-pub mod state_factory;
-pub mod state_transformation;
-pub mod utils;
-pub mod defaults;
+use abm_states::{ABMStates, ABMStatesSep, HifiStates, HifiStatesSep};
+use consts::Consts;
+use faer::{unzipped, zipped, Mat, MatRef};
+use quantum::{
+    cast_variant,
+    states::{operator::Operator, state::State, state_type::StateType, States, StatesBasis},
+    units::{energy_units::Energy, Au, Unit},
+};
+use utility::{diagonalize, spin_proj, sum_spin_proj};
 
-extern crate nalgebra;
-extern crate quantum;
+pub mod abm_states;
+pub mod consts;
+pub mod utility;
 
-#[cfg(test)]
-mod tests {
-    use std::rc::Rc;
+#[derive(Clone, PartialEq)]
+pub struct HifiProblemBuilder {
+    s: u32,
+    i: u32,
+    gamma_e: f64,
+    gamma_i: Option<f64>,
+    a_hifi: Option<f64>,
 
-    use nalgebra::DMatrix;
+    total_projection: Option<i32>,
+}
 
-    use crate::{
-        composite_state::CompositeState,
-        direct_sum_state::DirectSumState,
-        matrix_builder::MatrixBuilder,
-        operator::Operator,
-        spin_operators::*,
-        state::State,
-        state_factory::create_spin,
-        state_transformation::StateTransformation,
-        utils::{assert_almost_eq, clebsch_gordan},
-    };
-
-    fn sample_composite() -> CompositeState {
-        let state1 = Box::new(create_spin("spin_1", 1));
-        let state2 = Box::new(create_spin("spin_2", 2));
-        let state3 = Box::new(create_spin("spin_3", 3));
-
-        CompositeState::new("test_state", vec![state1, state2, state3])
+impl HifiProblemBuilder {
+    pub fn new(double_s: u32, double_i: u32) -> Self {
+        Self {
+            s: double_s,
+            i: double_i,
+            gamma_e: -2.0 * Consts::BOHR_MAG,
+            gamma_i: None,
+            a_hifi: None,
+            total_projection: None,
+        }
     }
 
-    #[test]
-    fn test_composite() {
-        let mut composite_state = sample_composite();
+    pub fn with_nuclear_magneton(mut self, gamma_i: f64) -> Self {
+        self.gamma_i = Some(gamma_i);
 
-        assert_eq!(composite_state.dim(), 24);
-        assert_eq!(
-            composite_state
-                .states_from_index(0)
-                .iter()
-                .map(|b| b.q_number())
-                .collect::<Vec<isize>>(),
-            vec![1, 2, 3]
-        );
-        assert_eq!(
-            composite_state
-                .states_from_index(1)
-                .iter()
-                .map(|b| b.q_number())
-                .collect::<Vec<isize>>(),
-            vec![-1, 2, 3]
-        );
-        assert_eq!(
-            composite_state
-                .states_from_index(7)
-                .iter()
-                .map(|b| b.q_number())
-                .collect::<Vec<isize>>(),
-            vec![-1, 2, 1]
-        );
-
-        let triplet = create_spin("triplet", 2);
-        let singlet = create_spin("singlet", 0);
-        let sum_state = Box::new(DirectSumState::new("spin_sum", vec![triplet, singlet]));
-        composite_state.add_state(sum_state);
-
-        let states = composite_state.states_from_index(2);
-        let triplet_base_state = states.last().unwrap();
-        assert_eq!(
-            composite_state.state_from_base(&triplet_base_state).name(),
-            "triplet"
-        );
-
-        let states = composite_state.states_from_index(3 * 24 + 2);
-        let singlet_base = states.last().unwrap();
-        assert_eq!(
-            composite_state.state_from_base(&singlet_base).name(),
-            "singlet"
-        );
+        self
     }
 
-    #[test]
-    fn test_matrix_builder() {
-        let composite_state = Rc::new(sample_composite());
-        let mut matrix_builder = MatrixBuilder::new(composite_state);
+    pub fn with_custom_bohr_magneton(mut self, gamma_e: f64) -> Self {
+        self.gamma_e = gamma_e;
 
-        assert_eq!(matrix_builder.dim(), 24);
-
-        matrix_builder
-            .filter_states(|q_states| q_states.iter().map(|s| s.q_number()).sum::<isize>() == -6);
-
-        assert_eq!(matrix_builder.dim(), 1);
-
-        matrix_builder.unfilter_states();
-        matrix_builder
-            .filter_states(|q_states| q_states.iter().map(|s| s.q_number()).sum::<isize>() == 0);
-        assert_eq!(matrix_builder.dim(), 6);
+        self
     }
 
-    #[test]
-    fn test_spin_operators() {
-        let state_1 = Box::new(create_spin("s1", 1));
-        let composite_state = Rc::new(CompositeState::new("test_state", vec![state_1]));
-        let matrix_builder = MatrixBuilder::new(composite_state.clone());
-        let spin = SpinOperators::new(composite_state.clone());
+    pub fn with_hyperfine_coupling(mut self, a_hifi: f64) -> Self {
+        self.a_hifi = Some(a_hifi);
 
-        let mut proj_z = Operator::new(composite_state.clone());
-        proj_z.add_operator(vec!["s1"], |brakets| spin.proj_z(&brakets["s1"]));
-        let proj_z_matrix = matrix_builder.from_operator(&proj_z);
-
-        assert_eq!(
-            proj_z_matrix,
-            DMatrix::from_vec(2, 2, vec![0.5, 0.0, 0.0, -0.5])
-        );
-
-        let mut ladder_plus = Operator::new(composite_state.clone());
-        ladder_plus.add_operator(vec!["s1"], |brakets| spin.ladder_plus(&brakets["s1"]));
-        let ladder_plus_matrix = matrix_builder.from_operator(&ladder_plus);
-        assert_eq!(
-            ladder_plus_matrix,
-            DMatrix::from_vec(2, 2, vec![0.0, 0.0, 1.0, 0.0])
-        );
-
-        let mut ladder_minus = Operator::new(composite_state.clone());
-        ladder_minus.add_operator(vec!["s1"], |brakets| spin.ladder_minus(&brakets["s1"]));
-        let ladder_minus_matrix = matrix_builder.from_operator(&ladder_minus);
-        assert_eq!(
-            ladder_minus_matrix,
-            DMatrix::from_vec(2, 2, vec![0.0, 1.0, 0.0, 0.0])
-        );
-
-        let mut summed = Operator::new(composite_state.clone());
-        summed.add_operator(vec!["s1"], |brakets| spin.proj_z(&brakets["s1"]));
-        summed.add_operator(vec!["s1"], |brakets| spin.ladder_plus(&brakets["s1"]));
-        summed.add_operator(vec!["s1"], |brakets| spin.ladder_minus(&brakets["s1"]));
-        let summed_matrix = matrix_builder.from_operator(&summed);
-        assert_eq!(
-            summed_matrix,
-            DMatrix::from_vec(2, 2, vec![0.5, 1.0, 1.0, -0.5])
-        );
+        self
     }
 
-    #[test]
-    fn test_dot_minus() {
-        let states = Rc::new({
-            let s_tot = Box::new(DirectSumState::new(
-                "S_tot",
-                vec![create_spin("triplet", 2), create_spin("singlet", 0)],
-            ));
+    pub fn with_total_projection(mut self, double_projection: i32) -> Self {
+        self.total_projection = Some(double_projection);
 
-            CompositeState::new("spin", vec![s_tot])
-        });
-
-        let matrix_builder = MatrixBuilder::new(states.clone());
-        println!("{}", matrix_builder);
-        let spin_ops = SpinOperators::new(states.clone());
-        let mut op = Operator::new(states.clone());
-        op.add_operator(vec!["S_tot"], |brakets| spin_ops.proj_z_minus(&brakets["S_tot"]));
-        let matrix = matrix_builder.from_operator(&op);
-        println!("{}", matrix);
-        let mut op = Operator::new(states.clone());
-        op.add_operator(vec!["S_tot"], |brakets| {
-            spin_ops.ladder_minus_minus(&brakets["S_tot"])
-        });
-        let matrix = matrix_builder.from_operator(&op);
-        println!("{}", matrix);
-        let mut op = Operator::new(states.clone());
-        op.add_operator(vec!["S_tot"], |brakets| {
-            spin_ops.ladder_plus_minus(&brakets["S_tot"])
-        });
-        let matrix = matrix_builder.from_operator(&op);
-        println!("{}", matrix);
+        self
     }
 
-    #[test]
-    fn test_hifi() {
-        let states = Rc::new({
-            let s_tot = Box::new(DirectSumState::new(
-                "S_tot",
-                vec![create_spin("triplet", 2), create_spin("singlet", 0)],
-            ));
-            let i1 = Box::new(create_spin("i1", 1));
-            let i2 = Box::new(create_spin("i2", 1));
+    pub fn build(self) -> ABMHifiProblem<HifiStates, i32> {
+        let mut states = States::default();
+        let s = State::new(HifiStates::ElectronDSpin(self.s), spin_proj(self.s));
+        let i = State::new(HifiStates::NuclearDSpin(self.i), spin_proj(self.i));
 
-            CompositeState::new("spin", vec![s_tot, i1, i2])
-        });
+        states
+            .push_state(StateType::Irreducible(s))
+            .push_state(StateType::Irreducible(i));
+        let basis = match self.total_projection {
+            Some(projection) => states
+                .iter_elements()
+                .filter(|s| s.values.iter().sum::<i32>() == projection)
+                .collect(),
+            None => states.get_basis(),
+        };
 
-        let mut matrix_builder = MatrixBuilder::new(states.clone());
-        matrix_builder
-            .filter_states(|q_states| q_states.iter().map(|s| s.q_number()).sum::<isize>() == 0);
+        let mut zeeman_prop =
+            get_zeeman_prop!(basis, HifiStates::ElectronDSpin, self.gamma_e).into_backed();
+        if let Some(gamma_i) = self.gamma_i {
+            zeeman_prop += get_zeeman_prop!(basis, HifiStates::NuclearDSpin, gamma_i).as_ref();
+        }
 
-        let spin_ops = SpinOperators::new(states.clone());
-        let mut hifi = Operator::new(states.clone());
-        hifi.add_operator(vec!["S_tot", "i1", "i2"], |brakets| {
-            let value = 0.5 * spin_ops.dot([&brakets["S_tot"], &brakets["i1"]])
-                + 0.5 * spin_ops.dot([&brakets["S_tot"], &brakets["i2"]]);
+        let mut hifi = Mat::zeros(basis.len(), basis.len());
+        if let Some(a_hifi) = self.a_hifi {
+            hifi += get_hifi!(
+                basis,
+                HifiStates::ElectronDSpin,
+                HifiStates::NuclearDSpin,
+                a_hifi
+            )
+            .as_ref()
+        }
 
-            value
-        })
-        .add_operator(vec!["S_tot", "i1", "i2"], |brakets| {
-            let value = 0.5 * spin_ops.dot_minus([&brakets["S_tot"], &brakets["i1"]])
-                - 0.5 * spin_ops.dot_minus([&brakets["S_tot"], &brakets["i2"]]);
+        ABMHifiProblem {
+            basis,
+            magnetic_inv: hifi,
+            magnetic_prop: zeeman_prop,
+        }
+    }
+}
 
-            value
-        });
-        let matrix = matrix_builder.from_operator(&hifi);
-        println!("{:.3e}", matrix);
+pub struct DoubleHifiProblemBuilder {
+    first: HifiProblemBuilder,
+    second: HifiProblemBuilder,
 
-        let states_ssi = Rc::new({
-            let s1 = Box::new(create_spin("s1", 1));
-            let s2 = Box::new(create_spin("s2", 1));
-            let i1 = Box::new(create_spin("i1", 1));
-            let i2 = Box::new(create_spin("i2", 1));
+    total_projection: Option<i32>,
+    symmetry: Symmetry,
+}
 
-            CompositeState::new("spin", vec![s1, s2, i1, i2])
-        });
-        let mut matrix_builder_ssi = MatrixBuilder::new(states_ssi.clone());
-        matrix_builder_ssi
-            .filter_states(|q_states| q_states.iter().map(|s| s.q_number()).sum::<isize>() == 0);
-        let transf = StateTransformation::new(&matrix_builder_ssi, &matrix_builder, |from, to| {
-            let d_spin1 = states_ssi.state_from_base(&from[0]).q_number() as usize;
-            let d_spin2 = states_ssi.state_from_base(&from[1]).q_number() as usize;
-            let tot_dspin = states.state_from_base(&to[0]).q_number() as usize;
+impl DoubleHifiProblemBuilder {
+    pub fn new(first: HifiProblemBuilder, second: HifiProblemBuilder) -> Self {
+        Self {
+            first,
+            second,
+            symmetry: Symmetry::None,
+            total_projection: None,
+        }
+    }
 
-            if from[2].same_as(&states_ssi, &to[1], &states)
-                && from[3].same_as(&states_ssi, &to[2], &states)
-            {
-                clebsch_gordan(
-                    d_spin1,
-                    from[0].q_number(),
-                    d_spin2,
-                    from[1].q_number(),
-                    tot_dspin,
-                    to[0].q_number(),
-                )
-            } else {
-                0.0
-            }
-        });
-        println!("{}", matrix_builder);
-        println!("{}", matrix_builder_ssi);
-        let transf_matrix = transf.matrix_transformation();
-        println!("transformation matrix");
-        println!("{:.3e}", transf_matrix);
-        println!("transformed matrix");
-        println!(
-            "{:.3e}",
-            transf_matrix.transpose() * matrix * &transf_matrix
+    pub fn new_homo(single: HifiProblemBuilder, symmetry: Symmetry) -> Self {
+        Self {
+            first: single.clone(),
+            second: single,
+            symmetry,
+            total_projection: None,
+        }
+    }
+
+    pub fn with_projection(mut self, double_projection: i32) -> Self {
+        self.total_projection = Some(double_projection);
+
+        self
+    }
+
+    pub fn build(self) -> ABMHifiProblem<HifiStates, i32> {
+        let s1 = State::new(
+            HifiStatesSep::ElDSpin1(self.first.s),
+            spin_proj(self.first.s),
+        );
+        let s2 = State::new(
+            HifiStatesSep::ElDSpin2(self.second.s),
+            spin_proj(self.second.s),
+        );
+        let i1 = State::new(
+            HifiStatesSep::NuclearDSpin1(self.first.i),
+            spin_proj(self.first.i),
+        );
+        let i2 = State::new(
+            HifiStatesSep::NuclearDSpin2(self.second.i),
+            spin_proj(self.second.i),
         );
 
-        let spin_ops = SpinOperators::new(states_ssi.clone());
+        let mut states = States::default();
+        states
+            .push_state(StateType::Irreducible(s1))
+            .push_state(StateType::Irreducible(s2))
+            .push_state(StateType::Irreducible(i1))
+            .push_state(StateType::Irreducible(i2));
 
-        let mut hifi = Operator::new(states_ssi.clone());
-        hifi.add_operator(vec!["s1", "i1"], |brakets| {
-            spin_ops.dot([&brakets["s1"], &brakets["i1"]])
-        })
-        .add_operator(vec!["s2", "i2"], |brakets| {
-            spin_ops.dot([&brakets["s2"], &brakets["i2"]])
-        });
-        let hifi_matrix = matrix_builder_ssi.from_operator(&hifi);
-        println!("{:.3e}", hifi_matrix);
+        let basis_sep = match self.total_projection {
+            Some(projection) => states
+                .iter_elements()
+                .filter(|s| s.values.iter().sum::<i32>() == projection)
+                .collect(),
+            None => states.get_basis(),
+        };
 
-        let hifi_matrix = &transf_matrix * hifi_matrix * transf_matrix.transpose();
-        println!("{:.3e}", hifi_matrix);
+        let s_tot = sum_spin_proj(self.first.s, self.second.s)
+            .into_iter()
+            .map(|x| State::new(HifiStates::ElectronDSpin(x.0), x.1))
+            .collect();
+        let i_tot = sum_spin_proj(self.first.i, self.second.i)
+            .into_iter()
+            .map(|x| State::new(HifiStates::NuclearDSpin(x.0), x.1))
+            .collect();
+
+        let mut states = States::default();
+        states
+            .push_state(StateType::Sum(s_tot))
+            .push_state(StateType::Sum(i_tot));
+
+        let basis = match self.total_projection {
+            Some(projection) => states
+                .iter_elements()
+                .filter(|s| s.values.iter().sum::<i32>() == projection)
+                .collect(),
+            None => states.get_basis(),
+        };
+
+        let mut zeeman_prop =
+            get_zeeman_prop!(basis_sep, HifiStatesSep::ElDSpin1, self.first.gamma_e).as_ref()
+                + get_zeeman_prop!(basis_sep, HifiStatesSep::ElDSpin2, self.second.gamma_e)
+                    .as_ref();
+
+        if let Some(gamma_i) = self.first.gamma_i {
+            zeeman_prop +=
+                get_zeeman_prop!(basis_sep, HifiStatesSep::NuclearDSpin1, gamma_i).as_ref();
+        }
+        if let Some(gamma_i) = self.second.gamma_i {
+            zeeman_prop +=
+                get_zeeman_prop!(basis_sep, HifiStatesSep::NuclearDSpin2, gamma_i).as_ref();
+        }
+
+        let mut hifi = Mat::zeros(basis_sep.len(), basis_sep.len());
+        if let Some(a_hifi_1) = self.first.a_hifi {
+            hifi += get_hifi!(
+                basis_sep,
+                HifiStatesSep::ElDSpin1,
+                HifiStatesSep::NuclearDSpin1,
+                a_hifi_1
+            )
+            .as_ref()
+        }
+        if let Some(a_hifi_2) = self.second.a_hifi {
+            hifi += get_hifi!(
+                basis_sep,
+                HifiStatesSep::ElDSpin2,
+                HifiStatesSep::NuclearDSpin2,
+                a_hifi_2
+            )
+            .as_ref()
+        }
+
+        let s_max = self.first.s + self.second.s;
+        let i_max = self.first.i + self.second.i;
+        let basis = match self.symmetry {
+            Symmetry::None => basis,
+            Symmetry::Fermionic => basis
+                .into_iter()
+                .filter(|s| {
+                    let s_tot = cast_variant!(s.variants[0], HifiStates::ElectronDSpin);
+                    let i_tot = cast_variant!(s.variants[1], HifiStates::NuclearDSpin);
+
+                    (s_max + i_max) % 4 != (s_tot + i_tot) % 4
+                })
+                .collect(),
+            Symmetry::Bosonic => basis
+                .into_iter()
+                .filter(|s| {
+                    let s_tot = cast_variant!(s.variants[0], HifiStates::ElectronDSpin);
+                    let i_tot = cast_variant!(s.variants[1], HifiStates::NuclearDSpin);
+
+                    (s_max + i_max) % 4 == (s_tot + i_tot) % 4
+                })
+                .collect(),
+        };
+
+        let transf = HifiStatesSep::convert_to_combined(&basis_sep, &basis);
+
+        let zeeman_prop = transf.as_ref() * zeeman_prop * transf.transpose();
+        let hifi = transf.as_ref() * hifi * transf.transpose();
+
+        ABMHifiProblem {
+            basis,
+            magnetic_inv: hifi,
+            magnetic_prop: zeeman_prop,
+        }
+    }
+}
+
+pub struct ABMProblemBuilder {
+    first: HifiProblemBuilder,
+    second: HifiProblemBuilder,
+
+    total_projection: Option<i32>,
+    symmetry: Symmetry,
+
+    abm_vibrational: Option<ABMVibrational>,
+}
+
+impl ABMProblemBuilder {
+    pub fn new(first: HifiProblemBuilder, second: HifiProblemBuilder) -> Self {
+        Self {
+            first,
+            second,
+            total_projection: None,
+            symmetry: Symmetry::None,
+            abm_vibrational: None,
+        }
     }
 
-    #[test]
-    fn test_clebsch_gordan() {
-        let result = clebsch_gordan(1, 1, 1, 1, 2, 2);
-        assert_almost_eq(result, 1.0, 1e-8);
+    pub fn new_homo(single: HifiProblemBuilder, symmetry: Symmetry) -> Self {
+        Self {
+            first: single.clone(),
+            second: single,
+            total_projection: None,
+            symmetry,
+            abm_vibrational: None,
+        }
+    }
 
-        let result = clebsch_gordan(1, 1, 1, -1, 2, 0);
-        assert_almost_eq(result, 1.0 / 2f64.sqrt(), 1e-8);
+    pub fn with_vibrational(mut self, vibrational: ABMVibrational) -> Self {
+        self.abm_vibrational = Some(vibrational);
 
-        let result = clebsch_gordan(1, -1, 1, 1, 2, 0);
-        assert_almost_eq(result, 1.0 / 2f64.sqrt(), 1e-8);
+        self
+    }
 
-        let result = clebsch_gordan(1, 1, 1, -1, 0, 0);
-        assert_almost_eq(result, 1.0 / 2f64.sqrt(), 1e-8);
+    pub fn with_projection(mut self, projection: i32) -> Self {
+        self.total_projection = Some(projection);
 
-        let result = clebsch_gordan(1, -1, 1, 1, 0, 0);
-        assert_almost_eq(result, -1.0 / 2f64.sqrt(), 1e-8);
+        self
+    }
 
-        let result = clebsch_gordan(2, -2, 4, 2, 6, 0);
-        assert_almost_eq(result, 1.0 / 5f64.sqrt(), 1e-8);
+    pub fn build(self) -> ABMHifiProblem<ABMStates, i32> {
+        assert!(
+            self.first.s == 1 && self.second.s == 1,
+            "ABM problem is done under the assumption of s = 1/2"
+        );
+
+        let mut states = States::default();
+        let s1 = State::new(
+            ABMStatesSep::ElDSpin1(self.first.s),
+            spin_proj(self.first.s),
+        );
+        let s2 = State::new(
+            ABMStatesSep::ElDSpin2(self.second.s),
+            spin_proj(self.second.s),
+        );
+        let i1 = State::new(
+            ABMStatesSep::NuclearDSpin1(self.first.i),
+            spin_proj(self.first.i),
+        );
+        let i2 = State::new(
+            ABMStatesSep::NuclearDSpin2(self.second.i),
+            spin_proj(self.second.i),
+        );
+
+        assert!(
+            self.abm_vibrational.is_some(),
+            "vibrational states not provided by function with_vibrational"
+        );
+        let abm_vibrational = self.abm_vibrational.unwrap();
+        let bounds_sep = State::new(ABMStatesSep::Vibrational, abm_vibrational.states());
+
+        states
+            .push_state(StateType::Irreducible(s1))
+            .push_state(StateType::Irreducible(s2))
+            .push_state(StateType::Irreducible(i1))
+            .push_state(StateType::Irreducible(i2))
+            .push_state(StateType::Irreducible(bounds_sep));
+
+        let basis_sep = match self.total_projection {
+            Some(projection) => states
+                .iter_elements()
+                .filter(|s| {
+                    s.pairwise_iter()
+                        .filter(|(&s, _)| s != ABMStatesSep::Vibrational)
+                        .map(|(_, v)| v)
+                        .sum::<i32>()
+                        == projection
+                })
+                .collect(),
+            None => states.get_basis(),
+        };
+
+        let s_tot = sum_spin_proj(self.first.s, self.second.s)
+            .into_iter()
+            .map(|x| State::new(ABMStates::ElectronDSpin(x.0), x.1))
+            .collect();
+        let i_tot = sum_spin_proj(self.first.i, self.second.i)
+            .into_iter()
+            .map(|x| State::new(ABMStates::NuclearDSpin(x.0), x.1))
+            .collect();
+        let bounds = State::new(ABMStates::Vibrational, abm_vibrational.states());
+
+        let mut states = States::default();
+        states
+            .push_state(StateType::Sum(s_tot))
+            .push_state(StateType::Sum(i_tot))
+            .push_state(StateType::Irreducible(bounds));
+
+        let basis = match self.total_projection {
+            Some(projection) => states
+                .iter_elements()
+                .filter(|s| {
+                    s.pairwise_iter()
+                        .filter(|(&s, _)| s != ABMStates::Vibrational)
+                        .map(|(_, v)| v)
+                        .sum::<i32>()
+                        == projection
+                })
+                .collect(),
+            None => states.get_basis(),
+        };
+
+        let s_max = self.first.s + self.second.s;
+        let i_max = self.first.i + self.second.i;
+        let basis = match self.symmetry {
+            Symmetry::None => basis,
+            Symmetry::Fermionic => basis
+                .into_iter()
+                .filter(|s| {
+                    let s_tot = cast_variant!(s.variants[0], ABMStates::ElectronDSpin);
+                    let i_tot = cast_variant!(s.variants[1], ABMStates::NuclearDSpin);
+
+                    (s_max + i_max) % 4 != (s_tot + i_tot) % 4
+                })
+                .collect(),
+            Symmetry::Bosonic => basis
+                .into_iter()
+                .filter(|s| {
+                    let s_tot = cast_variant!(s.variants[0], ABMStates::ElectronDSpin);
+                    let i_tot = cast_variant!(s.variants[1], ABMStates::NuclearDSpin);
+
+                    (s_max + i_max) % 4 == (s_tot + i_tot) % 4
+                })
+                .collect(),
+        };
+
+        let mut zeeman_prop =
+            get_zeeman_prop!(basis_sep, ABMStatesSep::ElDSpin1, self.first.gamma_e).as_ref()
+                + get_zeeman_prop!(basis_sep, ABMStatesSep::ElDSpin2, self.second.gamma_e).as_ref();
+
+        if let Some(gamma_i) = self.first.gamma_i {
+            zeeman_prop +=
+                get_zeeman_prop!(basis_sep, ABMStatesSep::NuclearDSpin1, gamma_i).as_ref();
+        }
+        if let Some(gamma_i) = self.second.gamma_i {
+            zeeman_prop +=
+                get_zeeman_prop!(basis_sep, ABMStatesSep::NuclearDSpin2, gamma_i).as_ref();
+        }
+
+        let mut hifi = Mat::zeros(basis_sep.len(), basis_sep.len());
+        if let Some(a_hifi_1) = self.first.a_hifi {
+            hifi += get_hifi!(basis_sep, ABMStatesSep::ElDSpin1, ABMStatesSep::NuclearDSpin1,
+                            a_hifi_1, with ABMStatesSep::Vibrational)
+            .as_ref()
+        }
+        if let Some(a_hifi_2) = self.second.a_hifi {
+            hifi += get_hifi!(basis_sep, ABMStatesSep::ElDSpin2, ABMStatesSep::NuclearDSpin2,
+                            a_hifi_2, with ABMStatesSep::Vibrational)
+            .as_ref()
+        }
+
+        let transf = ABMStatesSep::convert_to_combined(&basis_sep, &basis);
+
+        let bound_states = Operator::from_diagonal_mel(
+            &basis,
+            [ABMStates::ElectronDSpin(0), ABMStates::Vibrational],
+            |[s_ket, vib_ket]| {
+                let s = cast_variant!(s_ket.0, ABMStates::ElectronDSpin);
+                let vib = vib_ket.1;
+
+                if s == 2 {
+                    abm_vibrational.triplet_state(vib)
+                } else {
+                    abm_vibrational.singlet_state(vib)
+                }
+            },
+        );
+
+        let fc_factors = Operator::from_mel(
+            &basis,
+            [
+                ABMStates::ElectronDSpin(0),
+                ABMStates::NuclearDSpin(0),
+                ABMStates::Vibrational,
+            ],
+            |[s_braket, _, vib_braket]| {
+                let s_ket = cast_variant!(s_braket.ket.0, ABMStates::ElectronDSpin);
+                let s_bra = cast_variant!(s_braket.bra.0, ABMStates::ElectronDSpin);
+
+                if s_bra == s_ket {
+                    if vib_braket.bra.1 == vib_braket.ket.1 {
+                        1.
+                    } else {
+                        0.
+                    }
+                } else if s_bra == 2 {
+                    assert!(s_ket == 0);
+                    abm_vibrational.fc_factor(vib_braket.ket.1, vib_braket.bra.1)
+                } else {
+                    assert!(s_bra == 0);
+                    assert!(s_ket == 2);
+                    abm_vibrational.fc_factor(vib_braket.bra.1, vib_braket.ket.1)
+                }
+            },
+        );
+
+        let mut hifi = &*transf * hifi * transf.transpose();
+        zipped!(hifi.as_mut(), fc_factors.as_ref())
+            .for_each(|unzipped!(mut h, fc)| h.write(h.read() * fc.read()));
+
+        let zeeman_prop = &*transf * zeeman_prop * transf.transpose();
+
+        ABMHifiProblem {
+            basis,
+            magnetic_inv: hifi + bound_states.as_ref(),
+            magnetic_prop: zeeman_prop,
+        }
+    }
+}
+
+pub enum Symmetry {
+    None,
+    Fermionic,
+    Bosonic,
+}
+
+pub struct ABMVibrational {
+    singlet_states: Vec<f64>,
+    triplet_states: Vec<f64>,
+    fc_factors: Mat<f64>,
+}
+
+impl ABMVibrational {
+    /// Creates struct for storing vibrational abm states
+    /// and Franck-Condon factors.
+    ///
+    /// Franck-Condon factors are expected to be matrix of elements
+    /// <S = 0, v_S | S' = 1, v_S'>
+    pub fn new<U: Unit>(
+        singlet_states: Vec<Energy<U>>,
+        triplet_states: Vec<Energy<U>>,
+        fc_factors: Mat<f64>,
+    ) -> Self {
+        let singlet_states: Vec<f64> = singlet_states.into_iter().map(|x| x.to_au()).collect();
+        let triplet_states: Vec<f64> = triplet_states.into_iter().map(|x| x.to_au()).collect();
+
+        assert!(
+            singlet_states.windows(2).all(|w| w[0] > w[1]),
+            "states should be sorted from -1 state"
+        );
+        assert!(
+            triplet_states.windows(2).all(|w| w[0] > w[1]),
+            "states should be sorted from -1 state"
+        );
+
+        Self {
+            singlet_states,
+            triplet_states,
+            fc_factors,
+        }
+    }
+
+    pub fn states_no(&self) -> usize {
+        self.singlet_states.len()
+    }
+
+    pub fn states(&self) -> Vec<i32> {
+        (-(self.states_no() as i32)..0).rev().collect()
+    }
+
+    pub fn triplet_state(&self, vib: i32) -> f64 {
+        self.triplet_states[(-vib - 1) as usize]
+    }
+
+    pub fn singlet_state(&self, vib: i32) -> f64 {
+        self.singlet_states[(-vib - 1) as usize]
+    }
+
+    pub fn fc_factor(&self, vib_singlet: i32, vib_triplet: i32) -> f64 {
+        let i = (-vib_singlet - 1) as usize;
+        let j = (-vib_triplet - 1) as usize;
+
+        self.fc_factors[(i, j)]
+    }
+}
+
+pub struct ABMHifiProblem<T, V> {
+    basis: StatesBasis<T, V>,
+    magnetic_inv: Mat<f64>,
+    magnetic_prop: Mat<f64>,
+}
+
+impl<T, V> ABMHifiProblem<T, V> {
+    pub fn new_custom(
+        basis: StatesBasis<T, V>,
+        magnetic_inv: Mat<f64>,
+        magnetic_prop: Mat<f64>,
+    ) -> Self {
+        Self {
+            basis,
+            magnetic_inv,
+            magnetic_prop,
+        }
+    }
+
+    pub fn states_at(&self, magnetic_field: f64) -> (Vec<Energy<Au>>, Mat<f64>) {
+        let hamiltonian = &self.magnetic_inv + magnetic_field * &self.magnetic_prop;
+
+        let (energies, vectors) = diagonalize(hamiltonian.as_ref());
+
+        let energies = energies.into_iter().map(|x| Energy(x, Au)).collect();
+
+        (energies, vectors)
+    }
+
+    pub fn get_magnetic_inv(&self) -> MatRef<f64> {
+        self.magnetic_inv.as_ref()
+    }
+
+    pub fn get_magnetic_prop(&self) -> MatRef<f64> {
+        self.magnetic_prop.as_ref()
+    }
+
+    pub fn get_basis(&self) -> &StatesBasis<T, V> {
+        &self.basis
+    }
+
+    pub fn size(&self) -> (usize, usize) {
+        (self.magnetic_prop.nrows(), self.magnetic_prop.ncols())
     }
 }

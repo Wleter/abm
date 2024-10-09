@@ -1,7 +1,7 @@
 use problems::Problems;
 use quantum::problem_selector::{get_args, ProblemSelector};
 
-pub mod defaults;
+pub mod consts;
 pub mod problems;
 
 fn main() {

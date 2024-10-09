@@ -7,13 +7,5 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-quantum = { git = "https://github.com/Wleter/quantum.git", branch = "master" }
-nalgebra = "*"
-num = "*"
-pyo3 = { version = "*", features = ["auto-initialize"] }
-
-[profile.release]
-opt-level = 3
-codegen-units = 1
-panic = "abort"
-debug = true
+faer = "0.19.4"
+quantum = { git = "https://github.com/Wleter/quantum.git", features = ["spins", "faer"] }
