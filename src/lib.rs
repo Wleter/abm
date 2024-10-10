@@ -100,6 +100,7 @@ impl HifiProblemBuilder {
     }
 }
 
+#[derive(Clone)]
 pub struct DoubleHifiProblemBuilder {
     first: HifiProblemBuilder,
     second: HifiProblemBuilder,
@@ -259,6 +260,7 @@ impl DoubleHifiProblemBuilder {
     }
 }
 
+#[derive(Clone)]
 pub struct ABMProblemBuilder {
     first: HifiProblemBuilder,
     second: HifiProblemBuilder,
@@ -492,12 +494,14 @@ impl ABMProblemBuilder {
     }
 }
 
+#[derive(Clone)]
 pub enum Symmetry {
     None,
     Fermionic,
     Bosonic,
 }
 
+#[derive(Clone)]
 pub struct ABMVibrational {
     singlet_states: Vec<f64>,
     triplet_states: Vec<f64>,
@@ -517,6 +521,11 @@ impl ABMVibrational {
     ) -> Self {
         let singlet_states: Vec<f64> = singlet_states.into_iter().map(|x| x.to_au()).collect();
         let triplet_states: Vec<f64> = triplet_states.into_iter().map(|x| x.to_au()).collect();
+
+        assert!(singlet_states.len() == triplet_states.len(), "non-compatible states sizes");
+        assert!(singlet_states.len().pow(2) == fc_factors.nrows() * fc_factors.ncols()
+            && fc_factors.nrows() == fc_factors.ncols(),
+            "wrong dimensions of franck-condon factors");
 
         assert!(
             singlet_states.windows(2).all(|w| w[0] > w[1]),
