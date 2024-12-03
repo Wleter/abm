@@ -14,13 +14,13 @@ pub mod utility;
 
 #[derive(Clone, PartialEq)]
 pub struct HifiProblemBuilder {
-    s: u32,
-    i: u32,
-    gamma_e: f64,
-    gamma_i: Option<f64>,
-    a_hifi: Option<f64>,
+    pub s: u32,
+    pub i: u32,
+    pub gamma_e: f64,
+    pub gamma_i: Option<f64>,
+    pub a_hifi: Option<f64>,
 
-    total_projection: Option<i32>,
+    pub total_projection: Option<i32>,
 }
 
 impl HifiProblemBuilder {
@@ -102,11 +102,11 @@ impl HifiProblemBuilder {
 
 #[derive(Clone)]
 pub struct DoubleHifiProblemBuilder {
-    first: HifiProblemBuilder,
-    second: HifiProblemBuilder,
+    pub first: HifiProblemBuilder,
+    pub second: HifiProblemBuilder,
 
-    total_projection: Option<i32>,
-    symmetry: Symmetry,
+    pub total_projection: Option<i32>,
+    pub symmetry: Symmetry,
 }
 
 impl DoubleHifiProblemBuilder {
@@ -262,13 +262,13 @@ impl DoubleHifiProblemBuilder {
 
 #[derive(Clone)]
 pub struct ABMProblemBuilder {
-    first: HifiProblemBuilder,
-    second: HifiProblemBuilder,
+    pub first: HifiProblemBuilder,
+    pub second: HifiProblemBuilder,
 
-    total_projection: Option<i32>,
-    symmetry: Symmetry,
+    pub total_projection: Option<i32>,
+    pub symmetry: Symmetry,
 
-    abm_vibrational: Option<ABMVibrational>,
+    pub abm_vibrational: Option<ABMVibrational>,
 }
 
 impl ABMProblemBuilder {
